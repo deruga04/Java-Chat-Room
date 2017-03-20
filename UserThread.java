@@ -9,17 +9,18 @@ class UserThread extends Thread
 	private Socket clientSocket = null;
 	private final UserThread[] threads;
 	private int maxClients;
+	String username;
 
 	public UserThread(Socket clientSocket, UserThread[] threads)
 	{
 		this.clientSocket = clientSocket;
 		this.threads = threads;
 		maxClients = threads.length;
+		this.username = "";
 	}
 
 	public void run()
 	{
-		int maxClientsCount = this.maxClients;
 		UserThread[] threads = this.threads;
 
 		try
@@ -29,49 +30,86 @@ class UserThread extends Thread
 			 */
 			in = new DataInputStream(clientSocket.getInputStream());
 			out = new PrintStream(clientSocket.getOutputStream());
-			printWelcomeMessage();
-			out.println("Enter your name.");
-			String name = in.readLine().trim();
-			out.println("Hello " + name + " to our chat room.\nTo leave enter /quit in a new line");
-			for (int i = 0; i < maxClientsCount; i++)
+			String line;
+			boolean joined = false;;
+			
+			out.println("***************************");
+			out.println("Welcome to the chat room!");
+			out.println("@join - enter the server");
+			out.println("@leave - exit the server");
+			out.println("@list - users currently in the room");
+			out.println("***************************");
+			
+			while (!joined)
+			{
+				line = in.readLine();
+				if (line.startsWith("@join"))
+				{
+					joined = true;
+				}
+			}
+				
+			out.println("Enter a display name:");
+			this.username = in.readLine().trim();
+			
+			for (int i = 0; i < this.maxClients; i++)
 			{
 				if (threads[i] != null && threads[i] != this)
 				{
-					threads[i].out.println("*** A new user " + name + " entered the chat room !!! ***");
+					threads[i].out.println("*** New user " + this.username + " has joined. ***");
 				}
 			}
 			while (true)
 			{
-				String line = in.readLine();
-				if (line.startsWith("/quit"))
+				line = in.readLine();
+				if (line.startsWith("@list"))
+				{
+					for (int i = 0; i < threads.length; i++)
+					{
+						if (threads[i] != null)
+						{
+							out.println("User: " + threads[i].username 
+									+ " | IP: " + threads[i].clientSocket.getInetAddress() 
+									+ " | Port: " + threads[i].clientSocket.getPort());
+						}
+					}
+				}
+				
+				else if (line.startsWith("@leave"))
 				{
 					break;
 				}
-				for (int i = 0; i < maxClientsCount; i++)
+				else
 				{
-					if (threads[i] != null)
+					for (int i = 0; i < this.maxClients; i++)
 					{
-						threads[i].out.println("<" + name + "&gr; " + line);
+						if (threads[i] != null)
+						{
+							threads[i].out.println("<" + this.username + ": " + line);
+						}
 					}
 				}
 			}
-			for (int i = 0; i < maxClientsCount; i++)
+			for (int i = 0; i < this.maxClients; i++)
 			{
 				if (threads[i] != null && threads[i] != this)
 				{
-					threads[i].out.println("*** The user " + name + " is leaving the chat room !!! ***");
+					threads[i].out.println("*** User " + this.username + " is leaving. ***");
 				}
 			}
-			out.println("*** Bye " + name + " ***");
+			out.println("*** Bye " + this.username + " ***");
 
 			/*
 			 * Clean up. Set the current thread variable to null so that a new
 			 * client could be accepted by the server.
 			 */
-			for (int i = 0; i < maxClientsCount; i++)
+			for (int i = 0; i < this.maxClients; i++)
 			{
 				if (threads[i] == this)
 				{
+					threads[i].clientSocket.close();
+					threads[i].in.close();
+					threads[i].out.close();
 					threads[i] = null;
 				}
 			}
@@ -89,11 +127,6 @@ class UserThread extends Thread
 	}
 	public static void printWelcomeMessage()
 	{
-		System.out.println("***************************");
-		System.out.println("Welcome to the chat room!");
-		System.out.println("@join - enter the server");
-		System.out.println("@leave - exit the server");
-		System.out.println("@list - users currently in the room");
-		System.out.println("***************************");
+		
 	}
 }
